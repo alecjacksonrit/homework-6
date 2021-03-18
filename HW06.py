@@ -180,36 +180,36 @@ def combine_clusters(cluster1, cluster2):
 if __name__ == '__main__':
 
     # read shopping records into data frame
-    shopping_records = pd.read_csv('sample_data.csv')
+    shopping_records = pd.read_csv(SHOPPING_CART_RECORDS_CSV)
     # remove unique attribute ID from data frame
     del shopping_records['ID']
 
-    # # compute the pearson's cross correlation coefficient
-    # cross_correlation_matrix = shopping_records.corr()
-    # # pandas config for debug
-    # pd.set_option('max_columns', None)
-    # pd.set_option('display.width', 2000)
-    # pd.set_option('display.max_rows', cross_correlation_matrix.shape[0] + 1)
-    # print(cross_correlation_matrix)
-#
-    # # for each attribute find the attribute which correlates best with it, and it's correlation value
-    # for attribute in cross_correlation_matrix.columns:
-    #     best_correlating_attribute, correlation = find_strongest_correlation(cross_correlation_matrix.copy(), attribute)
-    #     print('{} is most strongly correlated with {} and has a correlation value of {}'. format(attribute,
-    #                                                                                              best_correlating_attribute,
-    #                                                                                              correlation))
-#
-    # # for each attribute find the attribute which correlates least with it, and it's correlation value
-    # for attribute in cross_correlation_matrix.columns:
-    #     worst_correlating_attribute, correlation = find_weakest_correlation(cross_correlation_matrix.copy(), attribute)
-    #     print('{} is least correlated with {} and has a correlation value of {}'. format(attribute,
-    #                                                                                      worst_correlating_attribute,
-    #                                                                                      correlation))
-#
-    # # for each attribute get its total correlation with all other attributes.
-    # for attribute in cross_correlation_matrix.columns:
-    #     total_correlation = find_total_correlation(cross_correlation_matrix.copy(), attribute)
-    #     print('{}\'s total correlation {}'. format(attribute, total_correlation))
+    # compute the pearson's cross correlation coefficient
+    cross_correlation_matrix = shopping_records.corr()
+    # pandas config for debug
+    pd.set_option('max_columns', None)
+    pd.set_option('display.width', 2000)
+    pd.set_option('display.max_rows', cross_correlation_matrix.shape[0] + 1)
+    print(cross_correlation_matrix)
+
+    # for each attribute find the attribute which correlates best with it, and it's correlation value
+    for attribute in cross_correlation_matrix.columns:
+        best_correlating_attribute, correlation = find_strongest_correlation(cross_correlation_matrix.copy(), attribute)
+        print('{} is most strongly correlated with {} and has a correlation value of {}'. format(attribute,
+                                                                                                 best_correlating_attribute,
+                                                                                                 correlation))
+
+    # for each attribute find the attribute which correlates least with it, and it's correlation value
+    for attribute in cross_correlation_matrix.columns:
+        worst_correlating_attribute, correlation = find_weakest_correlation(cross_correlation_matrix.copy(), attribute)
+        print('{} is least correlated with {} and has a correlation value of {}'. format(attribute,
+                                                                                         worst_correlating_attribute,
+                                                                                         correlation))
+
+    # for each attribute get its total correlation with all other attributes.
+    for attribute in cross_correlation_matrix.columns:
+        total_correlation = find_total_correlation(cross_correlation_matrix.copy(), attribute)
+        print('{}\'s total correlation {}'. format(attribute, total_correlation))
 
     # PART B OF HW
 
@@ -219,13 +219,9 @@ if __name__ == '__main__':
     distances = compute_distances(clusters, shopping_records.columns)
     sorted_distances = dict(sorted(distances.items(), key=lambda item: item[1]))
 
-
-    debug = True
     # stop when there is only one cluster
     while len(clusters) != 1:
-        print(sorted_distances)
         cluster1_index, cluster2_index = list(sorted_distances.keys())[0]
-        print('{} {} {}'.format(len(clusters), cluster1_index, cluster2_index))
 
         cluster2 = clusters.pop(cluster2_index)
         cluster1 = clusters.pop(cluster1_index)
@@ -233,33 +229,33 @@ if __name__ == '__main__':
         new_distances = dict()
         for cluster_indexes, distance in sorted_distances.items():
             if cluster1_index in cluster_indexes or cluster2_index in cluster_indexes:
-                print('CONTINUED')
                 continue
             cluster1_shift = 0
             cluster2_shift = 0
-            if cluster_indexes[0] < cluster1_index:
+            if cluster_indexes[0] > cluster1_index:
                 cluster1_shift += 1
-            if cluster_indexes[0] < cluster2_index:
+            if cluster_indexes[0] > cluster2_index:
+                cluster1_shift += 1
+
+            if cluster_indexes[1] > cluster1_index:
+                cluster2_shift += 1
+            if cluster_indexes[1] > cluster2_index:
                 cluster2_shift += 1
 
-            if cluster_indexes[1] < cluster1_index:
-                cluster1_shift += 1
-            if cluster_indexes[1] < cluster2_index:
-                cluster2_shift += 1
+            new_distances[(cluster_indexes[0] - cluster1_shift, cluster_indexes[1] - cluster2_shift)] = distance
 
-            new_distances[(cluster1_index - cluster1_shift, cluster2_index - cluster2_shift)] = distance
-
-        for cluster in clusters:
-            new_distances[(cluster1_index, len(clusters))] = euclidean_distance(cluster, new_cluster, shopping_records.columns)
+        for cluster_index, cluster in enumerate(clusters):
+            new_distances[(cluster_index, len(clusters))] = euclidean_distance(cluster, new_cluster, shopping_records.columns)
         clusters.append(new_cluster)
         sorted_distances = dict(sorted(new_distances.items(), key=lambda item: item[1]))
 
         # code used from homework and debugging
-        # if debug:
-        #     print('=========NEWMERGE=========')
-        #     print('{} into {}'.format(min(len(cluster1.data_points), len(cluster2.data_points)),
-        #                               max(len(cluster1.data_points), len(cluster2.data_points))))
-        #     print('CLUSTERS LEFT: {}'.format(len(clusters) + 1))
-        #     size_list = [len(cluster.data_points) for cluster in clusters]
-        #     size_list.sort()
-        #     print(size_list)
+        debug = True
+        if debug:
+            print('=========NEWMERGE=========')
+            print('{} into {}'.format(min(len(cluster1.data_points), len(cluster2.data_points)),
+                                      max(len(cluster1.data_points), len(cluster2.data_points))))
+            print('CLUSTERS LEFT: {}'.format(len(clusters) + 1))
+            size_list = [len(cluster.data_points) for cluster in clusters]
+            size_list.sort()
+            print(size_list)
