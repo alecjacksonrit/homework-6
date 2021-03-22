@@ -10,6 +10,9 @@ from math import sqrt
 # third party library
 import pandas as pd
 
+# k means
+from sklearn.cluster import KMeans
+
 # local
 
 
@@ -39,7 +42,7 @@ class Cluster:
     def compute_center(self, replace_center=True):
         """Compute and return the center of the cluster. If replace_center
            is true set clusters center to newly computed one."""
-        # dictionary containing the median value for each column in records
+        # dictionary containing the average value for each column in records
         center_dict = {}
 
         # for each column in records
@@ -49,12 +52,12 @@ class Cluster:
             for record in self.data_points:
                 column_values.append(record[column])
 
-            # compute mode
+            # compute average
 
-            median = statistics.median(column_values)
+            average = sum(column_values) / len(column_values)
 
             # add mode to dictionary
-            center_dict[column] = median
+            center_dict[column] = average
 
         # create a Series object as the computed center
         center = pd.Series(center_dict)
@@ -172,6 +175,25 @@ def combine_clusters(cluster1, cluster2):
 
     return new_cluster
 
+
+def show_kmeans(data):
+    print('==================K-Means==============')
+    kmeans = KMeans(n_clusters = 6).fit(data)
+    centers = kmeans.cluster_centers_
+    print(kmeans.cluster_centers_)
+    labels = data.columns
+
+    for i, center in enumerate(centers):
+        center_list = list(center)
+        min_list = sorted(zip(labels, center_list), key=lambda t: t[1])[:5]
+        max_list = sorted(zip(labels, center_list), key=lambda t: t[1])[15:]
+        print("K_Cluster", i + 1)
+        print('The 5 most common items:', list(map(lambda x : x[0], max_list)))
+        print('The 5 least common items:', list(map(lambda x : x[0], min_list)))
+
+
+
+
 # ============================================================== #
 #  SECTION: Main                                                 #
 # ============================================================== #
@@ -259,3 +281,19 @@ if __name__ == '__main__':
             size_list = [len(cluster.data_points) for cluster in clusters]
             size_list.sort()
             print(size_list)
+
+            if len(size_list) == 6:
+                for i, cluster in enumerate(clusters):
+                    print("CLUSTER", i+1, '---------------------------------------------------')
+                    print(pd.DataFrame(cluster.data_points).sum())
+                    print('CENTER')
+                    print(cluster.center)
+                print('++++++++AVERAGE PROTOTYPE+++++++++')
+                avg = pd.DataFrame(columns=shopping_records.columns)
+                for cluster in clusters:
+                    avg = avg.append([cluster.center], ignore_index=True)
+                print(avg)
+                print(avg.mean())
+
+
+    show_kmeans(shopping_records)
