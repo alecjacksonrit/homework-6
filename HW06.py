@@ -53,7 +53,6 @@ class Cluster:
                 column_values.append(record[column])
 
             # compute average
-
             average = sum(column_values) / len(column_values)
 
             # add mode to dictionary
@@ -140,7 +139,7 @@ def euclidean_distance(cluster1, cluster2, column_names):
 
 
 def compute_distances(clusters, column_names):
-    """Return the indexes associated with the two closest pairs in clusters."""
+    """Return a dictionary containing all cluster pairs mapped to their distances."""
     # initial values
     index_start = 0
     index_seeker = 1
@@ -192,8 +191,6 @@ def show_kmeans(data):
         print('The 5 least common items:', list(map(lambda x : x[0], min_list)))
 
 
-
-
 # ============================================================== #
 #  SECTION: Main                                                 #
 # ============================================================== #
@@ -239,36 +236,46 @@ if __name__ == '__main__':
     clusters = [Cluster(row, row) for _, row in shopping_records.iterrows()]
     # compute cluster distances
     distances = compute_distances(clusters, shopping_records.columns)
+    # create dictionary sorted by values (distances), mapping tuples of two indexs within clusters to distance between
     sorted_distances = dict(sorted(distances.items(), key=lambda item: item[1]))
 
     # stop when there is only one cluster
     while len(clusters) != 1:
+        # retrieve the indexes of the closest clusters
         cluster1_index, cluster2_index = list(sorted_distances.keys())[0]
-
+        # remove the closest two clusters from the list of clusters
         cluster2 = clusters.pop(cluster2_index)
         cluster1 = clusters.pop(cluster1_index)
+        # merge those clusters
         new_cluster = combine_clusters(cluster1, cluster2)
+
+        # create a new sorted dictionary of pairs of cluster indexes to distances
         new_distances = dict()
         for cluster_indexes, distance in sorted_distances.items():
+            # do not include entries that utilized either one of the two closest clusters
             if cluster1_index in cluster_indexes or cluster2_index in cluster_indexes:
                 continue
+            # due to the removal of two clusters references to indexes must be fixed/shifted
             cluster1_shift = 0
             cluster2_shift = 0
             if cluster_indexes[0] > cluster1_index:
                 cluster1_shift += 1
             if cluster_indexes[0] > cluster2_index:
                 cluster1_shift += 1
-
             if cluster_indexes[1] > cluster1_index:
                 cluster2_shift += 1
             if cluster_indexes[1] > cluster2_index:
                 cluster2_shift += 1
 
+            # add the old entry and or modified entry to the new dictionary
             new_distances[(cluster_indexes[0] - cluster1_shift, cluster_indexes[1] - cluster2_shift)] = distance
 
+        # create an entries of every cluster to the newly formed cluster and distance between them
         for cluster_index, cluster in enumerate(clusters):
             new_distances[(cluster_index, len(clusters))] = euclidean_distance(cluster, new_cluster, shopping_records.columns)
+        # add merged cluster
         clusters.append(new_cluster)
+        # resort the dictionary
         sorted_distances = dict(sorted(new_distances.items(), key=lambda item: item[1]))
 
         # code used from homework and debugging
@@ -294,6 +301,5 @@ if __name__ == '__main__':
                     avg = avg.append([cluster.center], ignore_index=True)
                 print(avg)
                 print(avg.mean())
-
 
     show_kmeans(shopping_records)
