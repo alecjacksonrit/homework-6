@@ -4,7 +4,6 @@
 
 # standard library
 import sys
-import statistics
 from math import sqrt
 
 # third party libraries
@@ -17,7 +16,6 @@ from sklearn.cluster import KMeans
 
 # dendogram
 from scipy.cluster.hierarchy import dendrogram
-
 
 # local
 
@@ -65,7 +63,6 @@ class Cluster:
                 column_values.append(record[column])
 
             # compute average
-
             average = sum(column_values) / len(column_values)
 
             # add mode to dictionary
@@ -152,7 +149,7 @@ def euclidean_distance(cluster1, cluster2, column_names):
 
 
 def compute_distances(clusters, column_names):
-    """Return the indexes associated with the two closest pairs in clusters."""
+    """Return a dictionary containing all cluster pairs mapped to their distances."""
     # initial values
     index_start = 0
     index_seeker = 1
@@ -163,8 +160,7 @@ def compute_distances(clusters, column_names):
     # while indexes are in range of of clusters
     while index_start < len(clusters) - 1:
         while index_seeker < len(clusters):
-
-            # compute the jaccard coefficient of two clusters
+            # compute the euclidian distance two clusters
             distance = euclidean_distance(clusters[index_start], clusters[index_seeker], column_names)
             distances[(index_start, index_seeker)] = distance
 
@@ -188,23 +184,27 @@ def combine_clusters(cluster1, cluster2):
     return new_cluster
 
 
-def show_kmeans(data):
+def show_kmeans(data, number_of_clusters=6):
+    """Run kmeans."""
     print('==================K-Means==============')
-    kmeans = KMeans(n_clusters = 6).fit(data)
-    centers = kmeans.cluster_centers_
+    # run kmeans to fit data into number_of_clusters, 10 times (default)
+    kmeans = KMeans(n_clusters=number_of_clusters).fit(data)
+    # print the prototype for each cluster
     print(kmeans.cluster_centers_)
+
     labels = data.columns
-
-    for i, center in enumerate(centers):
-        center_list = list(center)
-        min_list = sorted(zip(labels, center_list), key=lambda t: t[1])[:5]
-        max_list = sorted(zip(labels, center_list), key=lambda t: t[1])[15:]
-        print("K_Cluster", i + 1)
-        print('The 5 most common items:', list(map(lambda x : x[0], max_list)))
-        print('The 5 least common items:', list(map(lambda x : x[0], min_list)))
-
-
-
+    centers = kmeans.cluster_centers_
+    for cluster_id, center in enumerate(centers):
+        # sort the attributes of the clusters center from least to most common item
+        sorted_items = sorted(zip(labels, list(center)), key=lambda item: item[1])
+        # grab the 5 least common items
+        min_list = sorted_items[:5]
+        # grab the 5 most common items
+        max_list = sorted_items[-5:]
+        print("K_Cluster", cluster_id + 1)
+        # print list of items by name
+        print('The 5 most common items:', list(map(lambda item: item[0], max_list)))
+        print('The 5 least common items:', list(map(lambda item: item[0], min_list)))
 
 # ============================================================== #
 #  SECTION: Main                                                 #
@@ -212,7 +212,6 @@ def show_kmeans(data):
 
 
 if __name__ == '__main__':
-
     # read shopping records into data frame
     shopping_records = pd.read_csv(SHOPPING_CART_RECORDS_CSV)
     # remove unique attribute ID from data frame
@@ -251,27 +250,32 @@ if __name__ == '__main__':
     clusters = [Cluster(row, row) for _, row in shopping_records.iterrows()]
     # compute cluster distances
     distances = compute_distances(clusters, shopping_records.columns)
+    # create dictionary sorted by values (distances), mapping tuples of two indexes within clusters to distance between
     sorted_distances = dict(sorted(distances.items(), key=lambda item: item[1]))
-
 
     linkage_matrix = []
     # stop when there is only one cluster
     while len(clusters) != 1:
+        # retrieve the indexes of the closest clusters
         cluster1_index, cluster2_index = list(sorted_distances.keys())[0]
-
+        # remove the closest two clusters from the list of clusters
         cluster2 = clusters.pop(cluster2_index)
         cluster1 = clusters.pop(cluster1_index)
+        # merge those clusters
         new_cluster = combine_clusters(cluster1, cluster2)
         # add merge to linkage matrix
         linkage_matrix.append([cluster1.id,
                                cluster2.id,
                                sorted_distances[(cluster1_index, cluster2_index)],
                                len(new_cluster.data_points)])
-        new_distances = dict()
 
+        # create a new sorted dictionary of pairs of cluster indexes to distances
+        new_distances = dict()
         for cluster_indexes, distance in sorted_distances.items():
+            # do not include entries that utilized either one of the two closest clusters
             if cluster1_index in cluster_indexes or cluster2_index in cluster_indexes:
                 continue
+            # due to the removal of two clusters references to indexes must be fixed/shifted
             cluster1_shift = 0
             cluster2_shift = 0
             if cluster_indexes[0] > cluster1_index:
@@ -284,20 +288,24 @@ if __name__ == '__main__':
             if cluster_indexes[1] > cluster2_index:
                 cluster2_shift += 1
 
+            # add the old entry and possibly shifted entry to the new dictionary
             new_distances[(cluster_indexes[0] - cluster1_shift, cluster_indexes[1] - cluster2_shift)] = distance
 
+        # create an entries of every cluster to the newly formed cluster and distance between them
         for cluster_index, cluster in enumerate(clusters):
             new_distances[(cluster_index, len(clusters))] = euclidean_distance(cluster, new_cluster, shopping_records.columns)
+        # add merged cluster
         clusters.append(new_cluster)
+        # resort the dictionary
         sorted_distances = dict(sorted(new_distances.items(), key=lambda item: item[1]))
 
-        # code used from homework and debugging
+        # code used to output hw answers
         debug = True
         if debug:
             print('=========NEWMERGE=========')
             print('{} into {}'.format(min(len(cluster1.data_points), len(cluster2.data_points)),
                                       max(len(cluster1.data_points), len(cluster2.data_points))))
-            print('CLUSTERS LEFT: {}'.format(len(clusters) + 1))
+            print('CLUSTERS LEFT: {}'.format(len(clusters)))
             size_list = [len(cluster.data_points) for cluster in clusters]
             size_list.sort()
             print(size_list)
@@ -315,9 +323,10 @@ if __name__ == '__main__':
                 print(avg)
                 print(avg.mean())
 
-
+    # perform k-means
     show_kmeans(shopping_records)
 
+    # create and show dendrogram of the linkage matrix
     dendrogram(np.array(linkage_matrix))
     plt.show()
 
