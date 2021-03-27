@@ -7,11 +7,17 @@ import sys
 import statistics
 from math import sqrt
 
-# third party library
+# third party libraries
 import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
 
 # k means
 from sklearn.cluster import KMeans
+
+# dendogram
+from scipy.cluster.hierarchy import dendrogram
+
 
 # local
 
@@ -29,6 +35,9 @@ SHOPPING_CART_RECORDS_CSV = 'HW_PCA_SHOPPING_CART_v896.csv'
 # ============================================================== #
 
 class Cluster:
+    # id of the next cluster
+    ID = 0
+
     """Class representing a cluster."""
     def __init__(self, data_points, center=None):
         # handle non-list object
@@ -38,6 +47,9 @@ class Cluster:
         self.data_points = data_points
         # Series representing center of cluster
         self.center = center
+        # gives cluster an id and sets id for next cluster
+        self.id = Cluster.ID
+        Cluster.ID += 1
 
     def compute_center(self, replace_center=True):
         """Compute and return the center of the cluster. If replace_center
@@ -241,6 +253,8 @@ if __name__ == '__main__':
     distances = compute_distances(clusters, shopping_records.columns)
     sorted_distances = dict(sorted(distances.items(), key=lambda item: item[1]))
 
+
+    linkage_matrix = []
     # stop when there is only one cluster
     while len(clusters) != 1:
         cluster1_index, cluster2_index = list(sorted_distances.keys())[0]
@@ -248,7 +262,13 @@ if __name__ == '__main__':
         cluster2 = clusters.pop(cluster2_index)
         cluster1 = clusters.pop(cluster1_index)
         new_cluster = combine_clusters(cluster1, cluster2)
+        # add merge to linkage matrix
+        linkage_matrix.append([cluster1.id,
+                               cluster2.id,
+                               sorted_distances[(cluster1_index, cluster2_index)],
+                               len(new_cluster.data_points)])
         new_distances = dict()
+
         for cluster_indexes, distance in sorted_distances.items():
             if cluster1_index in cluster_indexes or cluster2_index in cluster_indexes:
                 continue
@@ -297,3 +317,7 @@ if __name__ == '__main__':
 
 
     show_kmeans(shopping_records)
+
+    dendrogram(np.array(linkage_matrix))
+    plt.show()
+
